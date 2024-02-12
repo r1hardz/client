@@ -13,13 +13,13 @@ def receive_messages(client_socket):
     finally:
         client_socket.close()
 
-def send_message(client_socket, name):
+def send_message(client_socket):
     try:
         while True:
-            message = input(": ")
+            message = input("Enter your message (type 'exit' to quit): ")
             if message.lower() == 'exit':
                 break
-            client_socket.sendall(f"{name}: {message}".encode())
+            client_socket.sendall(message.encode())
     except Exception as e:
         print("Error sending message:", e)
     finally:
@@ -33,8 +33,10 @@ def start_client():
     client_socket.connect((server_address, server_port))
 
     name = input("Enter your name: ")
+    client_socket.sendall(name.encode())
+
     receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-    send_thread = threading.Thread(target=send_message, args=(client_socket, name))
+    send_thread = threading.Thread(target=send_message, args=(client_socket,))
 
     receive_thread.start()
     send_thread.start()
