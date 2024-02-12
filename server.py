@@ -12,7 +12,7 @@ def receive_messages(client_socket):
 
 def send_message(client_socket, name):
     while True:
-        message = input("Enter your message (type 'exit' to quit): ")
+        message = input(name + ": ")
         if message.lower() == 'exit':
             break
         try:
