@@ -16,10 +16,8 @@ def receive_messages(client_socket):
 def send_message(client_socket):
     try:
         while True:
-            message = input("Enter your message (type 'exit' to quit): ")
-            if message.lower() == 'exit':
-                break
-            client_socket.sendall(message.encode())
+            # If you don't want to send messages from the client side, you can leave this part empty.
+            pass
     except Exception as e:
         print("Error sending message:", e)
     finally:
