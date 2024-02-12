@@ -41,5 +41,8 @@ def start_client():
     receive_thread.start()
     send_thread.start()
 
+    receive_thread.join()
+    send_thread.join()
+
 if __name__ == "__main__":
     start_client()
