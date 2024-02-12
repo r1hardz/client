@@ -1,11 +1,10 @@
-# client.py
 import tkinter as tk
 from tkinter import simpledialog
 import socket
 import threading
 
-SERVER_IP = '51.20.1.254'  # Replace with your server's IP address
-SERVER_PORT = 12345  # Replace with your server's port
+SERVER_IP = '51.20.1.254'  # Server's IP address
+SERVER_PORT = 12345  # Server's port
 
 class ChatClient:
     def __init__(self, master):
@@ -33,10 +32,10 @@ class ChatClient:
         if self.name:
             self.connect_frame.pack_forget()
             self.chat_frame.pack()
-
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 self.socket.connect((SERVER_IP, SERVER_PORT))
+                self.socket.sendall(self.name.encode())  # Send name immediately after connecting
                 self.connected = True
                 threading.Thread(target=self.receive_message).start()
             except Exception as e:
