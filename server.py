@@ -34,9 +34,11 @@ def start_client():
     name = input("Enter your name: ")
     client_socket.sendall(name.encode())
 
+    send_thread = threading.Thread(target=send_message, args=(client_socket, name))
     receive_messages(client_socket)
-    send_message(client_socket, name)
+
+    send_thread.start()
+    send_thread.join()
 
 if __name__ == "__main__":
     start_client()
-
