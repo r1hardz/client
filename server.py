@@ -1,10 +1,11 @@
+# client.py
 import tkinter as tk
 from tkinter import simpledialog
 import socket
 import threading
 
-SERVER_IP = '51.20.1.254'  # Change to your server's IP
-SERVER_PORT = 12345  # Change to your server's listening port
+SERVER_IP = '51.20.1.254'  # Replace with your server's IP address
+SERVER_PORT = 12345  # Replace with your server's port
 
 class ChatClient:
     def __init__(self, master):
@@ -37,24 +38,20 @@ class ChatClient:
             try:
                 self.socket.connect((SERVER_IP, SERVER_PORT))
                 self.connected = True
-                self.socket.sendall(self.name.encode())
                 threading.Thread(target=self.receive_message).start()
             except Exception as e:
                 print(f"Failed to connect to the server: {e}")
                 self.master.quit()
 
     def enter_pressed(self, event):
-        if self.connected:
-            msg = self.input_field.get()
-            self.input_user.set('')  # Clear the input field.
-            if msg:  # Only send non-empty messages.
-                self.send_message(msg)
-                self.update_chat_window(f"{self.name}: {msg}")  # Display your message in the chat window immediately.
+        msg = self.input_field.get()
+        self.input_user.set('')
+        if msg:
+            self.send_message(msg)
 
     def send_message(self, msg):
         try:
-            full_msg = f"{self.name}: {msg}"  # Prepend your name to the message.
-            self.socket.sendall(full_msg.encode())  # Send the full message to the server.
+            self.socket.sendall(msg.encode())
         except Exception as e:
             print(f"Failed to send message: {e}")
 
