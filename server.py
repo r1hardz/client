@@ -19,7 +19,7 @@ def send_message(client_socket, name):
             message = input(f"{name}: ")
             if message.lower() == 'exit':
                 break
-            client_socket.sendall(message.encode())
+            client_socket.sendall(f"{name}: {message}".encode())
     except Exception as e:
         print("Error sending message:", e)
     finally:
@@ -29,11 +29,10 @@ def start_client():
     server_address = '51.20.1.254'  # Replace with your server's IP address
     server_port = 12345  # Replace with your server's port number
 
-    name = input("Enter your name: ")
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((server_address, server_port))
-    client_socket.sendall(name.encode())  # Send client name to server
 
+    name = input("Enter your name: ")
     receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
     send_thread = threading.Thread(target=send_message, args=(client_socket, name))
 
