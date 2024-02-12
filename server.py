@@ -16,7 +16,7 @@ def receive_messages(client_socket):
 def send_message(client_socket, name):
     try:
         while True:
-            message = input(f"{name}: ")
+            message = input(": ")
             if message.lower() == 'exit':
                 break
             client_socket.sendall(f"{name}: {message}".encode())
