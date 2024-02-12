@@ -46,12 +46,15 @@ class ChatClient:
     def enter_pressed(self, event):
         if self.connected:
             msg = self.input_field.get()
-            self.input_user.set('')
-            self.send_message(msg)
+            self.input_user.set('')  # Clear the input field.
+            if msg:  # Only send non-empty messages.
+                self.send_message(msg)
+                self.update_chat_window(f"{self.name}: {msg}")  # Display your message in the chat window immediately.
 
     def send_message(self, msg):
         try:
-            self.socket.sendall(msg.encode())
+            full_msg = f"{self.name}: {msg}"  # Prepend your name to the message.
+            self.socket.sendall(full_msg.encode())  # Send the full message to the server.
         except Exception as e:
             print(f"Failed to send message: {e}")
 
