@@ -19,7 +19,7 @@ def send_message(client_socket, name):
             message = input(f"{name}: ")
             if message.lower() == 'exit':
                 break
-            client_socket.sendall(message.encode())
+            client_socket.sendall(f"{name}: {message}".encode())
     except Exception as e:
         print("Error sending message:", e)
     finally:
