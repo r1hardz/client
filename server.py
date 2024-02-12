@@ -1,4 +1,5 @@
 import socket
+import threading
 
 def receive_messages(client_socket):
     try:
@@ -21,8 +22,6 @@ def send_message(client_socket, name):
             client_socket.sendall(f"{name}: {message}".encode())
     except Exception as e:
         print("Error sending message:", e)
-    finally:
-        client_socket.close()
 
 def start_client():
     server_address = '51.20.1.254'  # Replace with your server's IP address
@@ -34,11 +33,15 @@ def start_client():
     name = input("Enter your name: ")
     client_socket.sendall(name.encode())
 
+    receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
     send_thread = threading.Thread(target=send_message, args=(client_socket, name))
-    receive_messages(client_socket)
 
+    receive_thread.start()
     send_thread.start()
+
+    receive_thread.join()
     send_thread.join()
 
 if __name__ == "__main__":
     start_client()
+
