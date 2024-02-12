@@ -13,11 +13,13 @@ def receive_messages(client_socket):
     finally:
         client_socket.close()
 
-def send_message(client_socket):
+def send_message(client_socket, name):
     try:
         while True:
-            # If you don't want to send messages from the client side, you can leave this part empty.
-            pass
+            message = input(f"{name}: ")
+            if message.lower() == 'exit':
+                break
+            client_socket.sendall(message.encode())
     except Exception as e:
         print("Error sending message:", e)
     finally:
@@ -34,7 +36,7 @@ def start_client():
     client_socket.sendall(name.encode())
 
     receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-    send_thread = threading.Thread(target=send_message, args=(client_socket,))
+    send_thread = threading.Thread(target=send_message, args=(client_socket, name))
 
     receive_thread.start()
     send_thread.start()
