@@ -1,39 +1,32 @@
 import socket
 import threading
 
-def send_message(client_socket, client_name):
+def send_message(client_socket, name):
     while True:
-        message = input("Enter your message (type 'exit' to quit): ")
+        message = input(f"{name}: ")
         if message.lower() == 'exit':
-            client_socket.close()
             break
-        client_socket.sendall(f"{client_name}: {message}".encode())
+        client_socket.sendall(f"{name}: {message}".encode())
 
-def receive_messages(client_socket):
-    while True:
-        try:
-            message = client_socket.recv(1024).decode()
-            print(message)
-        except ConnectionAbortedError:
-            break
-
-def connect_to_server():
+def main():
     server_address = '51.20.1.254'  # Replace with the server's IP address
-    server_port = 12345  # Replace with the server's port number
-
-    client_name = input("Enter your name: ")
+    server_port = 12345  # Replace with the server's port
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((server_address, server_port))
 
-    send_thread = threading.Thread(target=send_message, args=(client_socket, client_name))
-    receive_thread = threading.Thread(target=receive_messages, args=(client_socket,))
-    
-    send_thread.start()
-    receive_thread.start()
+    name = input("Enter your name: ")
 
-    send_thread.join()
-    receive_thread.join()
+    send_thread = threading.Thread(target=send_message, args=(client_socket, name))
+    send_thread.start()
+
+    while True:
+        message = client_socket.recv(1024).decode()
+        if not message:
+            break
+        print(message)
+
+    client_socket.close()
 
 if __name__ == "__main__":
-    connect_to_server()
+    main()
