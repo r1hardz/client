@@ -5,18 +5,18 @@ def receive_messages(client_socket):
     while True:
         try:
             message = client_socket.recv(1024).decode()
-            print("Received message:", message)
+            print(message)
         except Exception as e:
             print("Error receiving message:", e)
             break
 
 def send_message(client_socket, name):
     while True:
-        message = input(name + ": ")
+        message = input("Enter your message (type 'exit' to quit): ")
         if message.lower() == 'exit':
             break
         try:
-            client_socket.sendall(message.encode())
+            client_socket.sendall((name + ": " + message).encode())
         except Exception as e:
             print("Error sending message:", e)
             break
