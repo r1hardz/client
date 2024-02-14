@@ -75,10 +75,14 @@ class ChatClient:
         while True:
             try:
                 message = self.socket.recv(1024).decode('utf-8')
-                self.update_chat_window(message)
+                if message:
+                    self.update_chat_window(message)
+                else:
+                    break
             except Exception as e:
-                tk.messagebox.showerror("Receiving Error", f"Error receiving message: {e}")
+                print(f"Error receiving message: {e}")
                 break
+
 
     def update_chat_window(self, message):
         self.messages_text.config(state='normal')
@@ -89,3 +93,4 @@ class ChatClient:
 root = tk.Tk()
 client = ChatClient(root)
 root.mainloop()
+
