@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import simpledialog, messagebox
 import socket
 import threading
 
@@ -14,10 +14,7 @@ class ChatClient:
         self.socket = None
         self.connected = False
 
-        self.name = simpledialog.askstring("Name", "What's your name?", parent=master)
-        if not self.name:
-            master.quit()
-            return
+        self.prompt_user_name()
 
         self.room_selection_frame = tk.Frame(master)
         self.room_label = tk.Label(self.room_selection_frame, text="Enter chat room number (1-10):")
@@ -36,6 +33,18 @@ class ChatClient:
         self.input_field.pack(side=tk.BOTTOM, fill=tk.X)
         self.input_field.bind("<Return>", self.enter_pressed)
 
+    def prompt_user_name(self):
+        self.name = None
+        while not self.name:
+            temp_name = simpledialog.askstring("Name", "What's your name?", parent=self.master)
+            if temp_name and len(temp_name) <= 30:  # Limit name length to 30 characters
+                self.name = temp_name
+            else:
+                messagebox.showinfo("Name Too Long", "Please use a name with 30 or fewer characters.")
+        
+        if not self.name:  # If no name is provided, exit
+            self.master.quit()
+
     def join_chat_room(self):
         chat_room_number = self.room_number.get()
         if self.connect_to_server(chat_room_number):
@@ -53,10 +62,10 @@ class ChatClient:
                 threading.Thread(target=self.receive_message).start()
                 return True
             else:
-                tk.messagebox.showerror("Error", response)
+                messagebox.showerror("Error", response)
                 return False
         except Exception as e:
-            tk.messagebox.showerror("Connection Error", f"Failed to connect to the server: {e}")
+            messagebox.showerror("Connection Error", f"Failed to connect to the server: {e}")
             self.master.quit()
 
     def enter_pressed(self, event):
@@ -69,7 +78,7 @@ class ChatClient:
         try:
             self.socket.sendall(msg.encode())
         except Exception as e:
-            tk.messagebox.showerror("Sending Error", f"Failed to send message: {e}")
+            messagebox.showerror("Sending Error", f"Failed to send message: {e}")
 
     def receive_message(self):
         while True:
@@ -80,9 +89,8 @@ class ChatClient:
                 else:
                     break
             except Exception as e:
-                print(f"Error receiving message: {e}")
+                messagebox.showerror("Receiving Error", f"Error receiving message: {e}")
                 break
-
 
     def update_chat_window(self, message):
         self.messages_text.config(state='normal')
