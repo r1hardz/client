@@ -51,6 +51,9 @@ class ChatClient:
             if "SUCCESS" in response:
                 self.connected = True
                 self.enter_chat()
+                if "Room" in response:  # Room creation case
+                    room_id = response.split()[2]  # Extracting room ID from the response
+                    messagebox.showinfo("Room Created", f"Room {room_id} created. Share this ID with your friends!")
             else:
                 messagebox.showerror("Error", response)
                 self.socket.close()
@@ -76,15 +79,16 @@ class ChatClient:
 
     def enter_pressed(self, event):
         msg = self.input_field.get()
+        self.input_field.delete(0, tk.END)
         if msg:
             self.send_message(msg)
-            self.input_field.delete(0, tk.END)
 
     def send_message(self, msg):
-        try:
-            self.socket.sendall(msg.encode())
-        except Exception as e:
-            messagebox.showerror("Sending Error", f"Failed to send message: {e}")
+        if self.socket and self.connected:
+            try:
+                self.socket.sendall(msg.encode())
+            except Exception as e:
+                messagebox.showerror("Sending Error", f"Failed to send message: {e}")
 
     def receive_message(self):
         while self.connected:
