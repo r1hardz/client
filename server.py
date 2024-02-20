@@ -51,13 +51,19 @@ class ChatClient:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.socket.connect((SERVER_IP, SERVER_PORT))
-            self.socket.sendall(command.encode())
+            if command.startswith("JOIN_ROOM"):
+                room_id = command.split()[1]
+                self.room_id = room_id  # Save the room ID for later display
+                self.socket.sendall(command.encode())
+            else:
+                self.socket.sendall(command.encode())
+                self.room_id = None  # Will be set after server response for room creation
             self.socket.sendall(self.name.encode())
             response = self.socket.recv(1024).decode("utf8")
             if "SUCCESS" in response:
+                if "Room" in response:  # Extract room ID for created rooms
+                    self.room_id = response.split()[2]
                 self.connected = True
-                # Extract room ID if present in the response
-                self.room_id = response.split()[2] if "Room" in response else None
                 self.enter_chat()
             else:
                 messagebox.showerror("Error", response)
@@ -68,31 +74,26 @@ class ChatClient:
                 self.socket.close()
 
     def enter_chat(self):
-        self.initial_frame.pack_forget()  # Hide the initial frame
+        self.initial_frame.pack_forget()
         self.chat_frame = tk.Frame(self.master)
 
-        # Room ID label and Leave button
-        self.top_frame = tk.Frame(self.chat_frame)
-        if hasattr(self, 'room_id') and self.room_id:
-            self.room_id_label = tk.Label(self.top_frame, text=f"Room ID: {self.room_id}", fg='blue')
-            self.room_id_label.pack(side=tk.LEFT)
-        self.leave_button = tk.Button(self.top_frame, text="Leave", command=self.leave_room)
-        self.leave_button.pack(side=tk.RIGHT)
-        self.top_frame.pack(side=tk.TOP, fill=tk.X)
+        # If room_id is set, it means either a room was just created or we joined an existing one
+        if self.room_id:
+            self.room_id_label = tk.Label(self.chat_frame, text=f"Room ID: {self.room_id}", fg='blue')
+            self.room_id_label.pack(side=tk.TOP, pady=(5, 0))
 
-        # Chat messages text field
         self.messages_text = tk.Text(self.chat_frame, state='disabled', height=15, width=50)
         self.messages_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Message input field
         self.input_field = tk.Entry(self.chat_frame)
         self.input_field.pack(side=tk.BOTTOM, fill=tk.X)
         self.input_field.bind("<Return>", self.enter_pressed)
 
-        # Pack the chat frame
+        self.leave_button = tk.Button(self.chat_frame, text="Leave", command=self.leave_room)
+        self.leave_button.pack(side=tk.BOTTOM, pady=(5, 10))
+
         self.chat_frame.pack()
 
-        # Start the thread for receiving messages
         threading.Thread(target=self.receive_message, daemon=True).start()
 
 
@@ -175,3 +176,4 @@ class ChatClient:
 root = tk.Tk()
 client = ChatClient(root)
 root.mainloop()
+
