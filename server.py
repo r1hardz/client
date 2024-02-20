@@ -15,6 +15,11 @@ class ChatClient:
         self.setup_initial_ui()
 
     def setup_initial_ui(self):
+        # Destroy the previous initial frame if it exists
+        if hasattr(self, 'initial_frame') and self.initial_frame is not None:
+            self.initial_frame.destroy()
+
+        # Recreate the initial frame and its contents
         self.initial_frame = tk.Frame(self.master)
 
         # Create Room button
@@ -25,6 +30,7 @@ class ChatClient:
         self.join_room_button = tk.Button(self.initial_frame, text="Join Room", command=self.join_existing_room)
         self.join_room_button.pack(side=tk.LEFT)
 
+        # Pack the initial frame onto the master window
         self.initial_frame.pack()
 
     def create_room(self):
@@ -50,10 +56,9 @@ class ChatClient:
             response = self.socket.recv(1024).decode("utf8")
             if "SUCCESS" in response:
                 self.connected = True
+                # Extract room ID if present in the response
+                self.room_id = response.split()[2] if "Room" in response else None
                 self.enter_chat()
-                if "Room" in response:  # Room creation case
-                    room_id = response.split()[2]  # Extracting room ID from the response
-                    messagebox.showinfo("Room Created", f"Room {room_id} created. Share this ID with your friends!")
             else:
                 messagebox.showerror("Error", response)
                 self.socket.close()
@@ -63,19 +68,33 @@ class ChatClient:
                 self.socket.close()
 
     def enter_chat(self):
-        self.initial_frame.pack_forget()
+        self.initial_frame.pack_forget()  # Hide the initial frame
         self.chat_frame = tk.Frame(self.master)
 
+        # Room ID label and Leave button
+        self.top_frame = tk.Frame(self.chat_frame)
+        if hasattr(self, 'room_id') and self.room_id:
+            self.room_id_label = tk.Label(self.top_frame, text=f"Room ID: {self.room_id}", fg='blue')
+            self.room_id_label.pack(side=tk.LEFT)
+        self.leave_button = tk.Button(self.top_frame, text="Leave", command=self.leave_room)
+        self.leave_button.pack(side=tk.RIGHT)
+        self.top_frame.pack(side=tk.TOP, fill=tk.X)
+
+        # Chat messages text field
         self.messages_text = tk.Text(self.chat_frame, state='disabled', height=15, width=50)
         self.messages_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
+        # Message input field
         self.input_field = tk.Entry(self.chat_frame)
         self.input_field.pack(side=tk.BOTTOM, fill=tk.X)
         self.input_field.bind("<Return>", self.enter_pressed)
 
+        # Pack the chat frame
         self.chat_frame.pack()
 
+        # Start the thread for receiving messages
         threading.Thread(target=self.receive_message, daemon=True).start()
+
 
     def enter_pressed(self, event):
         msg = self.input_field.get()
@@ -90,6 +109,12 @@ class ChatClient:
             except Exception as e:
                 messagebox.showerror("Sending Error", f"Failed to send message: {e}")
 
+    def leave_room(self):
+        if self.connected:
+            self.send_message("/leave")  # Send a leave command or a specific message to the server
+            self.cleanup_connection()  # Clean up the connection
+            self.setup_initial_ui()  # Show the initial UI again
+
     def receive_message(self):
         while self.connected:
             try:
@@ -97,10 +122,24 @@ class ChatClient:
                 if message:
                     self.update_chat_window(message)
                 else:
+                    # No message means the server closed the connection
+                    break
+            except OSError as e:
+                if e.winerror == 10038:
+                    # An operation was attempted on something that is not a socket
+                    # Break from the loop if the socket is closed
+                    break
+                else:
+                    messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}")
                     break
             except Exception as e:
+                # Handle other exceptions
                 messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}")
                 break
+            finally:
+                # Ensure we don't access widgets after they've been destroyed
+                if not self.connected:
+                    break
         self.cleanup_connection()
 
     def update_chat_window(self, message):
@@ -110,9 +149,27 @@ class ChatClient:
         self.messages_text.see(tk.END)
 
     def cleanup_connection(self):
+        # Signal that we are no longer connected
         self.connected = False
+        
+        # Stop any ongoing socket operations by closing the socket
         if self.socket:
-            self.socket.close()
+            try:
+                self.socket.shutdown(socket.SHUT_RDWR)
+                self.socket.close()
+            except OSError:
+                pass  # Ignore the error if the socket is already closed
+            finally:
+                self.socket = None
+
+        # Clear the chat window and other elements if they exist
+        if hasattr(self, 'chat_frame') and self.chat_frame is not None:
+            # We need to check if the widget still exists before trying to destroy it
+            if self.chat_frame.winfo_exists():
+                self.chat_frame.destroy()
+            self.chat_frame = None
+
+        # Reset the initial UI
         self.setup_initial_ui()
 
 root = tk.Tk()
