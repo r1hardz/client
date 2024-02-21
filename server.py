@@ -134,8 +134,7 @@ class ChatClient:
         if self.socket and self.connected:
             try:
                 self.socket.sendall(msg.encode())
-                # Update the chat window immediately with the user's message
-                self.update_chat_window(f"You: {msg}")
+                # Do not update the chat window here. The server will echo the message back.
             except Exception as e:
                 messagebox.showerror("Sending Error", f"Failed to send message: {e}")
 
