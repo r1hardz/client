@@ -134,6 +134,8 @@ class ChatClient:
         if self.socket and self.connected:
             try:
                 self.socket.sendall(msg.encode())
+                # Update the chat window immediately with the user's message
+                self.update_chat_window(f"You: {msg}")
             except Exception as e:
                 messagebox.showerror("Sending Error", f"Failed to send message: {e}")
 
@@ -153,11 +155,9 @@ class ChatClient:
             try:
                 message = self.socket.recv(1024).decode('utf-8')
                 if message:
-                    # Update the chat window with the received message
-                    self.update_chat_window(message)
+                    self.master.after(0, lambda msg=message: self.update_chat_window(msg))
                 else:
-                    # No message means the server closed the connection
-                    break
+                    self.connected = False
             except OSError as e:
                 if hasattr(e, 'winerror'):
                     # Specifically check for the Windows Socket Error 10038 (WSAENOTSOCK)
@@ -166,27 +166,29 @@ class ChatClient:
                         # Break from the loop if the socket is closed
                         break
                     else:
-                        messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}")
-                        break
+                        self.master.after(0, lambda: messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}"))
                 else:
                     # For non-Windows systems or other OSError instances without a winerror attribute
-                    messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}")
-                    break
+                    self.master.after(0, lambda: messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}"))
+                break
             except Exception as e:
                 # Handle other exceptions
-                messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}")
+                self.master.after(0, lambda: messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}"))
+                self.connected = False
                 break
             finally:
-                # Ensure we don't attempt to update the UI if the connection is no longer active
                 if not self.connected:
+                    self.master.after(0, self.cleanup_connection)
                     break
-        self.cleanup_connection()
+ 
 
     def update_chat_window(self, message):
+        # Ensure the GUI updates happen in the main thread
         self.messages_text.config(state='normal')
         self.messages_text.insert(tk.END, message + "\n")
         self.messages_text.config(state='disabled')
-        self.messages_text.see(tk.END)
+        # Autoscroll to the bottom
+        self.messages_text.yview(tk.END)
 
     def cleanup_connection(self):
         # Signal we are no longer connected
