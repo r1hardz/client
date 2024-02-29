@@ -158,24 +158,24 @@ class ChatClient:
             try:
                 message = self.socket.recv(1024).decode('utf-8')
                 if message:
-                    self.master.after(0, lambda msg=message: self.update_chat_window(msg))
+                    if message.startswith("FILE"):
+                        _, filename, filesize = message.split(' ', 2)
+                        filesize = int(filesize)
+                        self.save_file(filename, filesize)
+                    else:
+                        self.master.after(0, lambda msg=message: self.update_chat_window(msg))
                 else:
                     self.connected = False
             except OSError as e:
                 if hasattr(e, 'winerror'):
-                    # Specifically check for the Windows Socket Error 10038 (WSAENOTSOCK)
                     if e.winerror == 10038:
-                        # An operation was attempted on something that is not a socket
-                        # Break from the loop if the socket is closed
                         break
                     else:
                         self.master.after(0, lambda: messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}"))
                 else:
-                    # For non-Windows systems or other OSError instances without a winerror attribute
                     self.master.after(0, lambda: messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}"))
                 break
             except Exception as e:
-                # Handle other exceptions
                 self.master.after(0, lambda: messagebox.showerror("Receiving Error", f"An unexpected error occurred: {e}"))
                 self.connected = False
                 break
@@ -184,6 +184,17 @@ class ChatClient:
                     self.master.after(0, self.cleanup_connection)
                     break
 
+    def request_file(self, filename):
+        """Request a file from the server."""
+        # Check if connected before attempting to send a request
+        if self.connected:
+            try:
+                # Send a command to the server indicating the file to download
+                self.socket.sendall(f"REQUEST_FILE {filename}".encode("utf8"))
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to request file: {e}")
+        else:
+            messagebox.showerror("Error", "Not connected to the server.")
 
     def select_file(self):
         """Open a dialog to select a file and send it."""
@@ -213,31 +224,58 @@ class ChatClient:
         file_send_thread.start()
 
 
+    def save_file(self, filename, filesize):
+        # Determine the standard downloads folder based on the operating system
+        if os.name == 'nt':  # Windows
+            download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
+        else:  # macOS, Linux, and other Unix-like systems
+            download_dir = os.path.join(os.path.expanduser('~'), 'Downloads')
+
+        # Ensure the directory exists
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
+
+        full_path = os.path.join(download_dir, filename)
+
+        self.socket.sendall(b"OK")  # Signal the server to start sending the file
+        with open(full_path, 'wb') as f:
+            bytes_received = 0
+            while bytes_received < filesize:
+                chunk = self.socket.recv(min(4096, filesize - bytes_received))
+                if not chunk:
+                    break  # Connection lost
+                f.write(chunk)
+                bytes_received += len(chunk)
+        
+        # Update GUI after file is received
+        self.master.after(0, lambda: self.update_chat_window(f"Received file: {filename}"))
+
+
     def update_chat_window(self, message):
         # Ensure the GUI updates happen in the main thread
         self.messages_text.config(state='normal')
 
-        # Check if the message indicates a shared file
-        if "SHARED_FILE" in message:
-            # Example message format: "SHARED_FILE filename"
-            _, file_info = message.split(maxsplit=1)
-            filename = file_info.strip()  # Get the filename from the message
+        # This needs to match what's actually being broadcast by the server
+        if "has been received and saved" in message:
+            # Extract the filename from the message
+            start = message.find("File ") + 5  # Adjust based on actual message format
+            end = message.find(" has been")
+            filename = message[start:end].strip()
 
-            # Create a clickable link or button for the file
+            # Insert interactive link for downloading the file
             link_text = f"[Download {filename}]"
-            self.messages_text.insert(tk.END, "File shared: ")
+            self.messages_text.insert(tk.END, f"{filename} available: ")
             self.messages_text.insert(tk.END, link_text, f"download_{filename}")
-            self.messages_text.insert(tk.END, "\n")  # Move to the next line
+            self.messages_text.insert(tk.END, "\n")
 
-            # Bind an event to the link or button
+            # Bind event for downloading the file
             self.messages_text.tag_bind(f"download_{filename}", "<Button-1>", lambda e, fn=filename: self.request_file(fn))
 
         else:
-            # For regular messages, just append them to the text widget
+            # Regular message
             self.messages_text.insert(tk.END, message + "\n")
 
         self.messages_text.config(state='disabled')
-        # Autoscroll to the bottom
         self.messages_text.yview(tk.END)
 
     def cleanup_connection(self):
