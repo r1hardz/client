@@ -1,7 +1,8 @@
 import tkinter as tk
-from tkinter import simpledialog, messagebox
+from tkinter import simpledialog, messagebox, filedialog
 import socket
 import threading
+import os
 
 SERVER_IP = '51.20.1.254'  # Update with your server's IP
 SERVER_PORT = 12345
@@ -29,6 +30,7 @@ class ChatClient:
         # Join Room button
         self.join_room_button = tk.Button(self.initial_frame, text="Join Room", command=self.join_existing_room)
         self.join_room_button.pack(side=tk.LEFT)
+        
 
         # Pack the initial frame onto the master window
         self.initial_frame.pack()
@@ -119,11 +121,13 @@ class ChatClient:
         self.leave_button = tk.Button(self.chat_frame, text="Leave", command=self.leave_room)
         self.leave_button.pack(side=tk.BOTTOM, pady=(5, 10))
 
+        self.send_file_button = tk.Button(self.chat_frame, text="Send File", command=self.select_file)
+        self.send_file_button.pack(side=tk.BOTTOM, pady=(0, 5))
+
         self.chat_frame.pack()
 
         threading.Thread(target=self.receive_message, daemon=True).start()
-
-
+    
     def enter_pressed(self, event):
         msg = self.input_field.get()
         self.input_field.delete(0, tk.END)
@@ -179,12 +183,59 @@ class ChatClient:
                 if not self.connected:
                     self.master.after(0, self.cleanup_connection)
                     break
- 
+
+
+    def select_file(self):
+        """Open a dialog to select a file and send it."""
+        filepath = filedialog.askopenfilename()  # Open the file dialog
+        if filepath:  # If a file is selected
+            self.send_file(filepath)
+
+    def send_file(self, filepath):
+        # Function to be executed in a new thread for sending a file
+        def thread_send_file():
+            try:
+                with open(filepath, 'rb') as f:
+                    filename = os.path.basename(filepath)
+                    filesize = os.path.getsize(filepath)
+                    # Inform the server about the file details
+                    self.socket.sendall(f"SEND_FILE {filename} {filesize}".encode("utf8"))
+
+                    # Send the file in chunks
+                    while (bytes_read := f.read(4096)):
+                        self.socket.sendall(bytes_read)
+                print("File sent successfully.")
+            except Exception as e:
+                print(f"Failed to send file: {e}")
+
+        # Start the file sending in a new thread to avoid freezing the GUI
+        file_send_thread = threading.Thread(target=thread_send_file)
+        file_send_thread.start()
+
 
     def update_chat_window(self, message):
         # Ensure the GUI updates happen in the main thread
         self.messages_text.config(state='normal')
-        self.messages_text.insert(tk.END, message + "\n")
+
+        # Check if the message indicates a shared file
+        if "SHARED_FILE" in message:
+            # Example message format: "SHARED_FILE filename"
+            _, file_info = message.split(maxsplit=1)
+            filename = file_info.strip()  # Get the filename from the message
+
+            # Create a clickable link or button for the file
+            link_text = f"[Download {filename}]"
+            self.messages_text.insert(tk.END, "File shared: ")
+            self.messages_text.insert(tk.END, link_text, f"download_{filename}")
+            self.messages_text.insert(tk.END, "\n")  # Move to the next line
+
+            # Bind an event to the link or button
+            self.messages_text.tag_bind(f"download_{filename}", "<Button-1>", lambda e, fn=filename: self.request_file(fn))
+
+        else:
+            # For regular messages, just append them to the text widget
+            self.messages_text.insert(tk.END, message + "\n")
+
         self.messages_text.config(state='disabled')
         # Autoscroll to the bottom
         self.messages_text.yview(tk.END)
