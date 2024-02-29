@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import simpledialog, messagebox, filedialog
+import tkinter.messagebox as tkMessageBox
 import socket
 import threading
 import os
@@ -185,16 +186,13 @@ class ChatClient:
                     break
 
     def request_file(self, filename):
-        """Request a file from the server."""
-        # Check if connected before attempting to send a request
+        # Check if connected before sending a file request
         if self.connected:
             try:
-                # Send a command to the server indicating the file to download
+                # Sending request to server to download the file
                 self.socket.sendall(f"REQUEST_FILE {filename}".encode("utf8"))
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to request file: {e}")
-        else:
-            messagebox.showerror("Error", "Not connected to the server.")
 
     def select_file(self):
         """Open a dialog to select a file and send it."""
@@ -250,33 +248,28 @@ class ChatClient:
         # Update GUI after file is received
         self.master.after(0, lambda: self.update_chat_window(f"Received file: {filename}"))
 
+    def confirm_download(self, filename):
+        if tkMessageBox.askyesno("Confirm", f"Are you sure you want to download {filename}?"):
+            self.request_file(filename)
 
     def update_chat_window(self, message):
-        # Ensure the GUI updates happen in the main thread
         self.messages_text.config(state='normal')
-
-        # This needs to match what's actually being broadcast by the server
-        if "has been received and saved" in message:
-            # Extract the filename from the message
-            start = message.find("File ") + 5  # Adjust based on actual message format
-            end = message.find(" has been")
-            filename = message[start:end].strip()
-
-            # Insert interactive link for downloading the file
-            link_text = f"[Download {filename}]"
-            self.messages_text.insert(tk.END, f"{filename} available: ")
-            self.messages_text.insert(tk.END, link_text, f"download_{filename}")
+        if message.startswith("File") and "available for download" in message:
+            parts = message.split(' ')
+            filename = parts[1]  # Assuming the format "File {filename} available for download"
+            download_text = f"[Download {filename}]"
+            self.messages_text.insert(tk.END, message + " ")
+            self.messages_text.insert(tk.END, download_text, f"download_{filename}")
             self.messages_text.insert(tk.END, "\n")
-
-            # Bind event for downloading the file
-            self.messages_text.tag_bind(f"download_{filename}", "<Button-1>", lambda e, fn=filename: self.request_file(fn))
-
+            self.messages_text.tag_bind(f"download_{filename}", "<Button-1>", lambda e, fn=filename: self.confirm_download(fn))
         else:
-            # Regular message
             self.messages_text.insert(tk.END, message + "\n")
-
         self.messages_text.config(state='disabled')
         self.messages_text.yview(tk.END)
+
+    def confirm_download(self, filename):
+        if tkMessageBox.askyesno("Confirm", f"Are you sure you want to download {filename}?"):
+            self.request_file(filename)
 
     def cleanup_connection(self):
         # Signal we are no longer connected
